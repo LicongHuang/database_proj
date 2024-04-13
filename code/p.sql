@@ -208,7 +208,6 @@ $$ LANGUAGE plpgsql;
 -- PROCEDURE 4
 
 CREATE OR REPLACE PROCEDURE auto_assign () AS $$
--- add declarations here
 DECLARE
   c CURSOR FOR (
     SELECT *
@@ -240,7 +239,8 @@ BEGIN
       SELECT 1
       FROM Bookings b, Assigns a
       WHERE b.bid = a.bid
-      AND NOT (b.sdate, b.sdate + b.days) OVERLAPS (r.sdate, r.sdate + r.days)
+      AND a.plate = cd.plate
+      AND (b.sdate, b.sdate + b.days + 1) OVERLAPS (r.sdate, r.sdate + r.days)
     )
     ORDER BY cd.plate ASC
     LIMIT 1;
@@ -249,7 +249,6 @@ BEGIN
       INSERT INTO Assigns (bid, plate) VALUES (r.bid, plate);
     END IF;
   END LOOP;
-  -- your code here
 END;
 $$ LANGUAGE plpgsql;
 
