@@ -110,9 +110,34 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION compute_revenue (
   sdate DATE, edate DATE
 ) RETURNS NUMERIC AS $$
-  -- your code here
-$$ LANGUAGE plpgsql;
+DECLARE
+  bookings_revenue NUMERIC := 0;
+  drivers_revenue  NUMERIC := 0;
+  car_details_cost NUMERIC := 0;
+BEGIN
+  -- revenue from bookings
+  SELECT COALESCE(SUM(M.daily * B.days), 0) INTO bookings_revenue
+  FROM Bookings B
+  JOIN Assigns A ON B.bid = A.bid
+  JOIN CarDetails C ON A.plate = C.plate -- car detail used in booking
+  JOIN CarModels M ON C.brand = M.brand AND C.model = M.model -- car model used in booking
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
 
+  -- revenue from drivers
+  SELECT COALESCE(SUM((H.todate - H.fromdate + 1) * 10), 0) INTO drivers_revenue
+  FROM Hires H
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (compute_revenue.sdate, edate); -- +1 to include the last day to overlap
+
+  -- cost from bookings
+  SELECT COALESCE(COUNT(DISTINCT C.plate) * 100, 0) INTO car_details_cost
+  FROM CarDetails C
+  JOIN Assigns A ON C.plate = A.plate
+  JOIN Bookings B ON A.bid = B.bid
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
+
+  RETURN bookings_revenue + drivers_revenue - car_details_cost;
+END;
+$$ LANGUAGE plpgsql;
 
 -- FUNCTION 2
 CREATE OR REPLACE FUNCTION top_n_location (

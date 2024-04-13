@@ -137,22 +137,21 @@ BEGIN
   JOIN Assigns A ON B.bid = A.bid
   JOIN CarDetails C ON A.plate = C.plate -- car detail used in booking
   JOIN CarModels M ON C.brand = M.brand AND C.model = M.model -- car model used in booking
-  WHERE NOT (B.sdate > edate OR B.sdate + B.days < sdate);
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
 
   -- revenue from drivers
-  SELECT COALESCE(SUM((D.todate - D.fromdate + 1) * 10), 0) INTO drivers_revenue
-  FROM Drivers D
-  JOIN Hires H ON D.eid = H.eid
-  WHERE NOT (H.fromdate > edate OR H.todate < sdate);
+  SELECT COALESCE(SUM((H.todate - H.fromdate + 1) * 10), 0) INTO drivers_revenue
+  FROM Hires H
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (compute_revenue.sdate, edate); -- +1 to include the last day to overlap
 
   -- cost from bookings
   SELECT COALESCE(COUNT(DISTINCT C.plate) * 100, 0) INTO car_details_cost
   FROM CarDetails C
   JOIN Assigns A ON C.plate = A.plate
   JOIN Bookings B ON A.bid = B.bid
-  WHERE NOT (B.sdate > edate OR B.sdate + B.days < sdate);
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
 
-  RETURN bookings_revenue + drivers_revenue - bookings_cost
+  RETURN bookings_revenue + drivers_revenue - car_details_cost;
 END;
 $$ LANGUAGE plpgsql;
 
