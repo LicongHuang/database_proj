@@ -151,26 +151,45 @@ FOR EACH ROW EXECUTE FUNCTION check_driver_hire();
     that are incomplete), you may get 0 mark for P03.
 */
 
--- PROCEDURE 1
+-- procedure 1 
 CREATE OR REPLACE PROCEDURE add_employees (
   eids INT[], enames TEXT[], ephones INT[], zips INT[], pdvls TEXT[]
 ) AS $$
+DECLARE
 -- add declarations here
+  i INT;
 BEGIN
-  -- your code here
+  FOR i IN 1..array_upper(eids, 1) 
+  LOOP
+    INSERT INTO Employees (eid, ename, ephone, zip)
+    VALUES (eids[i], enames[i], ephones[i], zips[i]);
+
+    IF pdvls[i] IS NOT NULL THEN
+    INSERT INTO Drivers (eid, pdvl)
+    VALUES (eids[i], pdvls[i]);
+
+    END IF;
+  END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
-
--- PROCEDURE 2
+--procedure 2
 CREATE OR REPLACE PROCEDURE add_car (
   brand   TEXT   , model  TEXT   , capacity INT  ,
   deposit NUMERIC, daily  NUMERIC,
   plates  TEXT[] , colors TEXT[] , pyears   INT[], zips INT[]
 ) AS $$
--- add declarations here
+DECLARE
+  i INT;
 BEGIN
-  -- your code here
+  INSERT INTO CarModels (brand, model, capacity, deposit, daily)
+  VALUES (brand, model, capacity, deposit, daily);
+  IF array_length(plates, 1) IS NOT NULL THEN
+  FOR i IN 1..array_length(plates, 1) LOOP
+    INSERT INTO CarDetails (plate, color, pyear, brand, model, zip)
+    VALUES (plates[i], colors[i], pyears[i], brand, model, zips[i]);
+  END LOOP;
+  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
