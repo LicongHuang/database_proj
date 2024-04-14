@@ -287,3 +287,113 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+-- FUNCTION 1
+CREATE OR REPLACE FUNCTION compute_revenue (
+  sdate DATE, edate DATE
+) RETURNS NUMERIC AS $$
+DECLARE
+  bookings_revenue NUMERIC := 0;
+  drivers_revenue  NUMERIC := 0;
+  car_details_cost NUMERIC := 0;
+BEGIN
+  -- revenue from bookings
+  SELECT COALESCE(SUM(M.daily * B.days), 0) INTO bookings_revenue
+  FROM Bookings B
+  JOIN Assigns A ON B.bid = A.bid
+  JOIN CarDetails C ON A.plate = C.plate -- car detail used in booking
+  JOIN CarModels M ON C.brand = M.brand AND C.model = M.model -- car model used in booking
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
+
+  -- revenue from drivers
+  SELECT COALESCE(SUM((H.todate - H.fromdate + 1) * 10), 0) INTO drivers_revenue
+  FROM Hires H
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (compute_revenue.sdate, edate); -- +1 to include the last day to overlap
+
+  -- cost from bookings
+  SELECT COALESCE(COUNT(DISTINCT C.plate) * 100, 0) INTO car_details_cost
+  FROM CarDetails C
+  JOIN Assigns A ON C.plate = A.plate
+  JOIN Bookings B ON A.bid = B.bid
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
+
+  RETURN bookings_revenue + drivers_revenue - car_details_cost;
+END;
+$$ LANGUAGE plpgsql;
+
+
+-- FUNCTION 2
+-- FUNCTION 2
+CREATE OR REPLACE FUNCTION top_n_location (
+  n INT, sdate DATE, edate DATE
+) RETURNS TABLE(lname TEXT, revenue NUMERIC, rank INT) AS $$
+BEGIN
+  RETURN QUERY
+  WITH rev_per_loc AS (
+    SELECT 
+      zip, 
+      Locations.lname,
+      revenue_per_location(zip, sdate, edate) AS revenue
+    FROM Locations
+  ), location_rankings AS (
+    SELECT
+      rev_of_curr_loc.lname AS lr_lname,
+      rev_of_curr_loc.revenue AS lr_revenue,
+      CAST(
+        (
+          SELECT COUNT(*) 
+          FROM rev_per_loc AS other_locations_rev
+          WHERE other_locations_rev.revenue >= rev_of_curr_loc.revenue
+        ) AS INTEGER 
+      ) AS lr_rank
+    FROM rev_per_loc AS rev_of_curr_loc
+  )
+  SELECT lr_lname AS lname, lr_revenue AS revenue, lr_rank AS rank
+  FROM (
+    SELECT lr_lname, lr_revenue, lr_rank,
+           DENSE_RANK() OVER (ORDER BY lr_rank, lr_lname) AS dense_rank
+    FROM location_rankings
+  ) AS ranked_locations
+  WHERE lr_rank <= n
+  ORDER BY lr_rank, lr_lname;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION revenue_per_location (
+  location_zip INT,
+  start_date DATE,
+  end_date DATE
+) RETURNS NUMERIC AS $$
+DECLARE
+  bookings_revenue NUMERIC := 0;
+  drivers_revenue NUMERIC := 0;
+  car_details_cost NUMERIC := 0;
+BEGIN
+  -- Calculate revenue from bookings
+  SELECT COALESCE(SUM(M.daily * B.days), 0) INTO bookings_revenue
+  FROM Bookings B
+  JOIN Assigns A ON B.bid = A.bid
+  JOIN CarDetails C ON A.plate = C.plate
+  JOIN CarModels M ON C.brand = M.brand AND C.model = M.model
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date)
+    AND C.zip = location_zip;
+
+  -- Calculate revenue from drivers
+  SELECT COALESCE(SUM((H.todate - H.fromdate + 1) * 10), 0) INTO drivers_revenue
+  FROM Hires H
+  JOIN Assigns A ON H.bid = A.bid
+  JOIN CarDetails C ON A.plate = C.plate
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (start_date, end_date)
+    AND C.zip = location_zip;
+
+  -- Calculate cost from bookings
+  SELECT COALESCE(COUNT(DISTINCT C.plate) * 100, 0) INTO car_details_cost
+  FROM CarDetails C
+  JOIN Assigns A ON C.plate = A.plate
+  JOIN Bookings B ON A.bid = B.bid
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date)
+    AND C.zip = location_zip;
+
+  -- Return the net revenue
+  RETURN bookings_revenue + drivers_revenue - car_details_cost;
+END;
+$$ LANGUAGE plpgsql;
