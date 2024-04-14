@@ -1,11 +1,17 @@
 /*
-Group #
-1. Name 1
-  - Contribution A
-  - Contribution B
-2. Name 2
-  - Contribution A
-  - Contribution B
+Group 037
+1. Huang Licong
+  - Added triggers prevent_double_booking, prevent_car_double_booking, prevent_employee_location, prevent_car_model, prevent_driver_hire
+  - Checked correctness of triggers against checker and added additional test cases
+2. Tee Yu Xun
+  - Added procedures add_employees, add_car
+  - Checked correctness of procedures against checker and added additional test cases
+3. Chow Yuan Jing
+  - Added procedures return_car, auto_assign
+  - Checked correctness of procedures against checker and added additional test cases
+4. Low Bi Shen, Gary
+  - Added functions compute_revenue, top_n_location, revenue_per_location (helper function for top_n_location)
+  - Checked correctness of functions against checker and added additional test cases
 */
 
 
