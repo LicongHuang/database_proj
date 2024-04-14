@@ -193,23 +193,96 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Procedure 3
 
--- PROCEDURE 3
-CREATE OR REPLACE PROCEDURE return_car (
-  bid INT, eid INT
-) AS $$
+CREATE OR REPLACE PROCEDURE return_car (bid INT, eid INT) AS $$
 -- add declarations here
+DECLARE
+  cost NUMERIC;
+  days INT;
+  daily NUMERIC;
+  cbrand TEXT;
+  cmodel TEXT;
+  ccnum TEXT;
+  deposit NUMERIC;
 BEGIN
+  -- CHECKS
+  IF NOT EXISTS (
+    SELECT 1
+    FROM Bookings B
+    WHERE B.bid = return_car.bid
+  ) THEN
+    RAISE EXCEPTION 'No booking with that bid exists';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1
+    FROM Employees E
+    WHERE E.eid = return_car.eid
+  ) THEN
+    RAISE EXCEPTION 'No employee with that eid exists';
+  END IF;
+
+  -- LOGIC
+  SELECT B.brand, B.model, B.days, B.ccnum INTO cbrand, cmodel, days, ccnum FROM Bookings B WHERE B.bid = return_car.bid;
+  SELECT cm.daily, cm.deposit INTO daily, deposit FROM CarModels cm
+  WHERE cm.brand = cbrand
+  AND cm.model = cmodel;
+
   -- your code here
+  cost := daily * days - deposit;
+  INSERT INTO Returned (bid, eid, ccnum, cost)
+  VALUES (bid, eid, ccnum, cost);
+  IF cost > 0 AND ccnum IS NULL THEN
+    RAISE EXCEPTION 'No ccnum provided';
+  END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-
 -- PROCEDURE 4
+
 CREATE OR REPLACE PROCEDURE auto_assign () AS $$
--- add declarations here
+DECLARE
+  c CURSOR FOR (
+    SELECT *
+    FROM Bookings b
+    WHERE b.bid NOT IN (
+      SELECT bid
+      FROM Assigns
+    )
+    ORDER BY b.bid ASC
+  );
+  r RECORD;
+  brand TEXT;
+  model TEXT;
+  zip INT;
+  sdate DATE;
+  days INT;
+  plate TEXT;
 BEGIN
-  -- your code here
+  OPEN c;
+  LOOP
+    FETCH c INTO r;
+    EXIT WHEN NOT FOUND;
+    SELECT cd.plate INTO plate
+    FROM CarDetails cd
+    WHERE cd.brand = r.brand
+    AND cd.model = r.model
+    AND cd.zip = r.zip
+    AND NOT EXISTS (
+      SELECT 1
+      FROM Bookings b, Assigns a
+      WHERE b.bid = a.bid
+      AND a.plate = cd.plate
+      AND (b.sdate, b.sdate + b.days + 1) OVERLAPS (r.sdate, r.sdate + r.days)
+    )
+    ORDER BY cd.plate ASC
+    LIMIT 1;
+
+    IF plate IS NOT NULL THEN
+      INSERT INTO Assigns (bid, plate) VALUES (r.bid, plate);
+    END IF;
+  END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
