@@ -97,12 +97,13 @@ def trigger1(sql):
   db.exec("INSERT INTO CarDetails VALUES ('plate2', 'color', 2000, 'brand', 'model', 123456)")
   db.exec("INSERT INTO Bookings VALUES (1000, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
   db.exec("INSERT INTO Bookings VALUES (1001, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
+  db.exec("INSERT INTO Bookings VALUES (1002, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
   db.exec("INSERT INTO Assigns VALUES (1000, 'plate1')")
   db.exec("INSERT INTO Assigns VALUES (1001, 'plate2')")
   print('░', end='', flush=True)
 
   # Check DB
-  db_check = unordered(db.fetch("SELECT bid FROM Bookings;").res[-1], ([], [(1000,),(1001,)]))
+  db_check = unordered(db.fetch("SELECT bid FROM Bookings;").res[-1], ([], [(1000,),(1001,),(1002,)]))
   if db_check != 'Correct':
     print(db_check)
     return
@@ -152,6 +153,32 @@ def trigger1(sql):
   count += insert(db.res[-1], True, 'No Overlap', tbl)
   print('▓', end='', flush=True)
 
+
+  # Should fail
+  db.exec("INSERT INTO Hires VALUES (1002, 100, DATE('2022-01-06'), DATE('2022-01-06'), 'ccnum')")
+  count += insert(db.res[-1], False, 'Both dates too late', tbl)
+  print('▓', end='', flush=True)
+
+    # Should fail
+  db.exec("INSERT INTO Hires VALUES (1002, 100, DATE('2024-01-06'), DATE('2024-01-06'), 'ccnum')")
+  count += insert(db.res[-1], False, 'Both dates too early', tbl)
+  print('▓', end='', flush=True)
+
+  # Should fail
+  db.exec("INSERT INTO Hires VALUES (1002, 100, DATE('2023-01-06'), DATE('2024-01-06'), 'ccnum')")
+  count += insert(db.res[-1], False, 'End date too late', tbl)
+  print('▓', end='', flush=True)
+
+  # Should fail
+  db.exec("INSERT INTO Hires VALUES (1002, 100, DATE('2023-01-06'), DATE('2023-01-04'), 'ccnum')")
+  count += insert(db.res[-1], False, 'End date earlier than Start date', tbl)
+  print('▓', end='', flush=True)
+
+  # Should fail
+  db.exec("INSERT INTO Hires VALUES (1002, 100, DATE('2022-01-06'), DATE('2023-01-06'), 'ccnum')")
+  count += insert(db.res[-1], False, 'Start date too early', tbl)
+  print('▓', end='', flush=True)
+
   db.close()
   print('█')
   print(table(['Check', 'Comment'], tbl))
@@ -181,10 +208,11 @@ def trigger2(sql):
   db.exec("INSERT INTO Bookings VALUES (1000, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
   db.exec("INSERT INTO Bookings VALUES (1001, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
   db.exec("INSERT INTO Bookings VALUES (1002, DATE('2023-01-07'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
+  db.exec("INSERT INTO Bookings VALUES (1003, DATE('2023-01-01'), 6, 'email', 'ccnum', DATE('2022-12-01'), 'brand', 'model', 123456)")
   print('░', end='', flush=True)
 
   # Check DB
-  db_check = unordered(db.fetch("SELECT bid FROM Bookings;").res[-1], ([], [(1000,),(1001,),(1002,)]))
+  db_check = unordered(db.fetch("SELECT bid FROM Bookings;").res[-1], ([], [(1000,),(1001,),(1002,), (1003,)]))
   if db_check != 'Correct':
     print(db_check)
     return
@@ -221,6 +249,11 @@ def trigger2(sql):
   # Should pass
   db.exec("INSERT INTO Assigns VALUES (1002, 'plate1')")
   count += insert(db.res[-1], True, 'Plate assigned to another booking but with start date just after the end date', tbl)
+  print('▓', end='', flush=True)
+
+  # Should fail
+  db.exec("INSERT INTO Assigns VALUES (1003, 'plate2')")
+  count += insert(db.res[-1], False, 'Plate assigned to another booking but with start date overlapping', tbl)
   print('▓', end='', flush=True)
 
   db.close()
