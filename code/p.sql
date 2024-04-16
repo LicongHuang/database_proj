@@ -240,7 +240,7 @@ BEGIN
       FROM Bookings b, Assigns a
       WHERE b.bid = a.bid
       AND a.plate = cd.plate
-      AND (b.sdate, b.sdate + b.days + 1) OVERLAPS (r.sdate, r.sdate + r.days)
+      AND (b.sdate, b.sdate + b.days + 1) OVERLAPS (r.sdate, r.sdate + r.days + 1)
     )
     ORDER BY cd.plate ASC
     LIMIT 1;
