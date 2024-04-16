@@ -308,19 +308,24 @@ BEGIN
   JOIN Assigns A ON B.bid = A.bid
   JOIN CarDetails C ON A.plate = C.plate -- car detail used in booking
   JOIN CarModels M ON C.brand = M.brand AND C.model = M.model -- car model used in booking
-  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate + 1);
 
   -- revenue from drivers
   SELECT COALESCE(SUM((H.todate - H.fromdate + 1) * 10), 0) INTO drivers_revenue
   FROM Hires H
-  WHERE (H.fromdate, H.todate + 1) OVERLAPS (compute_revenue.sdate, edate); -- +1 to include the last day to overlap
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (compute_revenue.sdate, edate + 1); -- +1 to include the last day to overlap
 
   -- cost from bookings
   SELECT COALESCE(COUNT(DISTINCT C.plate) * 100, 0) INTO car_details_cost
   FROM CarDetails C
   JOIN Assigns A ON C.plate = A.plate
   JOIN Bookings B ON A.bid = B.bid
-  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate);
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (compute_revenue.sdate, edate + 1);
+
+  RAISE NOTICE 'bookings_revenue: %', bookings_revenue;
+  RAISE NOTICE 'drivers_revenue: %', drivers_revenue;
+  RAISE NOTICE 'car_details_cost: %', car_details_cost;
+  RAISE NOTICE 'net revenue: %', bookings_revenue + drivers_revenue - car_details_cost;
 
   RETURN bookings_revenue + drivers_revenue - car_details_cost;
 END;
@@ -380,7 +385,7 @@ BEGIN
   JOIN Assigns A ON B.bid = A.bid
   JOIN CarDetails C ON A.plate = C.plate
   JOIN CarModels M ON C.brand = M.brand AND C.model = M.model
-  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date)
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date + 1)
     AND C.zip = location_zip;
 
   -- Calculate revenue from drivers
@@ -388,7 +393,7 @@ BEGIN
   FROM Hires H
   JOIN Assigns A ON H.bid = A.bid
   JOIN CarDetails C ON A.plate = C.plate
-  WHERE (H.fromdate, H.todate + 1) OVERLAPS (start_date, end_date)
+  WHERE (H.fromdate, H.todate + 1) OVERLAPS (start_date, end_date + 1)
     AND C.zip = location_zip;
 
   -- Calculate cost from bookings
@@ -396,7 +401,7 @@ BEGIN
   FROM CarDetails C
   JOIN Assigns A ON C.plate = A.plate
   JOIN Bookings B ON A.bid = B.bid
-  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date)
+  WHERE (B.sdate, B.sdate + B.days) OVERLAPS (start_date, end_date + 1)
     AND C.zip = location_zip;
 
   -- Return the net revenue

@@ -2,5 +2,6 @@ config = {
   'host': 'localhost',
   'name': 'postgres',
   'user': 'postgres',
-  'pswd': ''
+  'port': '5433',
+  'pswd': 'Jh0zbnyt!'
 }
