@@ -1140,7 +1140,7 @@ def function1(sql):
   if db.err != 0:
     count -= 1000
   
-  revenue = db.fetch("SELECT compute_revenue(%s, %s)", "2023-01-04", "2023-01-08")
+  revenue = db.fetch("SELECT compute_revenue(%s, %s)", "2023-01-04", "2023-01-08") # SELECT compute_revenue('2023-01-04', '2023-01-08');
   db_check_valid = unordered(revenue.res[-1], ([], [(3020, )]))
   count += check_db_state(db_check_valid, 'Initial revenue', tbl)
   print('▓', end='', flush=True)
@@ -1169,6 +1169,23 @@ def function1(sql):
   db_check_valid_5 = unordered(revenue5.res[-1], ([], [(0, )]))
   count += check_db_state(db_check_valid_5, 'Does not cover any bookings', tbl)
   print('▓', end='', flush=True)
+
+  ### Additional test cases
+  revenue6 = db.fetch("SELECT compute_revenue(%s, %s)", "2022-12-01", "2022-12-12")
+  db_check_valid_6 = unordered(revenue6.res[-1], ([], [(0, )]))
+  count += check_db_state(db_check_valid_6, 'Date range before all bookings', tbl)
+  print('▓', end='', flush=True)
+  
+  revenue7 = db.fetch("SELECT compute_revenue(%s, %s)", "2023-01-01", "2023-01-01")
+  db_check_valid_7 = unordered(revenue7.res[-1], ([], [(2900, )]))
+  count += check_db_state(db_check_valid_7, 'Date range before all bookings but starts on a booking start date', tbl)
+  print('▓', end='', flush=True)
+  
+  revenue8 = db.fetch("SELECT compute_revenue(%s, %s)", "2023-01-01", "2023-01-02")
+  db_check_valid_8 = unordered(revenue8.res[-1], ([], [(3000, )]))
+  count += check_db_state(db_check_valid_8, 'Date range before bookings, 1 booking 1 hire', tbl)
+  print('▓', end='', flush=True)
+
 
   db.close()
   print('█')
@@ -1310,16 +1327,17 @@ def function2(sql):
 Testing: Uncomment the functions below
          to test the respective component
 '''
-trigger1(triggers)
-trigger2(triggers)
-trigger3(triggers)
-trigger4(triggers)
-trigger5(triggers)
-trigger6(triggers)
+# trigger1(triggers)
+# trigger2(triggers)
+# trigger3(triggers)
+# trigger4(triggers)
+# trigger5(triggers)
+# trigger6(triggers)
 
-procedure1(triggers)
-procedure2(triggers)
-procedure3(triggers)
-procedure4(triggers)
+# procedure1(triggers)
+# procedure2(triggers)
+# procedure3(triggers)
+# procedure4(triggers)
+
 function1(triggers)
 function2(triggers)
